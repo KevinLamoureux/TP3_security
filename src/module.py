@@ -70,7 +70,7 @@ def generate(dir_path):
         writeFile(path_File + 'c', generateNumber(2000))
     print("Generate finish")
 
-def splitPad(content):
+def splitBinary(content):
     '''(binary) -> array<binary> '''
     split_pad = []
     for i in range (0, len(content), 8):
@@ -79,14 +79,31 @@ def splitPad(content):
 
 def binToChar(path_repertory_current, type_file):
     '''(string, char) -> string '''
-    f = open(path_repertory_current + type_file)
-    list_pad = splitPad(f.readlines()[0])
+    f = open(path_repertory_current + type_file, "r")
+    list_pad = splitBinary(f.readlines()[0])
     new_char = ""
     for index_message in range(len(list_pad)):
         # Use the mask on each character
         new_char += chr(int(list_pad[index_message], 2))
     f.close()
     return new_char
+
+def checkBinary(byte_list, binary_verif):
+    '''(array<binary>, string) -> bool '''
+    split_pad = splitBinary(binary_verif)
+    if byte_list == split_pad :
+        return True
+    return False
+
+def cleanBinary(byte_list):
+    '''(array<binary>) -> (array<binary>, array<binary>, array<binary>) '''
+    return (byte_list[0 : 48]), (byte_list[48 : len(byte_list)-48]), (byte_list[len(byte_list)-48 : len(byte_list)])
+
+def writeFile(name, message):
+    '''(string, string) -> none '''
+    f = open(name , "w")
+    f.write(message)
+    f.close()
 
 def send(dir_path, message):
     '''(string, string) -> none '''
@@ -104,30 +121,28 @@ def send(dir_path, message):
     for rep in range(len(list_rep)):
         new_path_repertory = dir_path + '/' + list_rep[rep]
         for i in range(0, 100):
-            path_File = new_path_repertory + '/' + str(i).zfill(2) + 'c'
-            if(os.path.exists(path_File)):
-                path_pad = path_File
+            path_file = new_path_repertory + '/' + str(i).zfill(2) + 'c'
+            if(os.path.exists(path_file)):
+                path_pad = path_file
                 path_repertory_current = new_path_repertory + '/' + str(i).zfill(2)
                 #if the file does not comply, we go to the next one
                 try:
                     suffix = binToChar(path_repertory_current, "p")
-                    f = open(path_pad)
+                    f = open(path_pad, "r")
                     msg = ""
-                    list_pad = splitPad(f.readlines()[0])
+                    list_pad = splitBinary(f.read())
                     for index_message in range(len(message)):
-                        # Use the mask on each character
-                        msg += chr(ord(message[index_message]) + int(list_pad[index_message], 2))
+                        # Use the mask on each character and XOR operator
+                        msg += chr(ord(message[index_message]) ^ int(list_pad[index_message], 2))
                     f.close()
                     prefix = binToChar(path_repertory_current, "s")
                     #replaced to construct the file name
-                    path_message = path_repertory_current.replace('/', '-')
-                    f = open(path_message + 't' , "w")
-                    f.write(suffix + msg + prefix)
-                    f.close()
+                    path_message = path_repertory_current.replace('/', '-') + 't'
+                    writeFile(path_message, suffix + msg + prefix)
                     #shred file p
                     subprocess.Popen(['shred', path_pad])
                     find = True
-                    break;
+                    break
                 except:
                     continue
         if(find):
@@ -136,5 +151,61 @@ def send(dir_path, message):
         sys.exit('No existing PAD. Stop program')
 
 
-def receive(dir_path):
-    print("receive")
+def receive(dir_path, filename):
+    '''(string, string) -> none '''
+    if not(os.path.isdir(dir_path)):
+         sys.exit('Directory does not exist. Stop program')
+    if not(os.path.exists(filename)):
+        sys.exit('File does not exist. Stop program')
+
+    list_rep = getListRep(dir_path)
+    if (len(list_rep) < 1):
+        sys.exit('No existing PAD. Stop program')
+
+    try:
+        f = open(filename, "r")
+        msg_chiffre = f.read()
+        byte_list = []
+        for i in range(len(msg_chiffre)):
+            binary_representation = bin(ord(msg_chiffre[i]))
+            byte_list.append(binary_representation[2:].zfill(8))
+            
+        f.close()
+        suffix_msg, binary_msg, prefix_msg = cleanBinary(byte_list)
+    except:
+        sys.exit('File error. Stop program')
+
+    find = False
+    for rep in range(len(list_rep)):
+        new_path_repertory = dir_path + '/' + list_rep[rep]
+        for i in range(0, 100):
+            path_file = new_path_repertory + '/' + str(i).zfill(2) + 'p'
+            # try , if error continue
+            try:
+                if(os.path.exists(path_file)):
+                    # load suffix
+                    f = open(path_file, "r")
+                    suffix = f.read()
+                    f.close()
+                    if (checkBinary(suffix_msg, suffix)):
+                        path_pad = path_file[:-1] + 'c'
+                        f = open(path_pad, "r")
+                        list_pad = splitBinary(f.read())
+                        msg = ""
+                        for index_message in range(len(binary_msg)):
+                            # Use the mask on each character and XOR operator
+                            msg += chr(int(binary_msg[index_message], 2) ^ int(list_pad[index_message], 2))
+                        f.close()
+                        find = True
+                        path_message = path_file.replace('/', '-')[:-1] + 'm'
+                        writeFile(path_message, msg)
+                        #shred file p
+                        subprocess.Popen(['shred', path_pad])
+                        subprocess.Popen(['shred', filename])
+                        break
+            except:
+                continue
+        if(find):
+            break
+    if not (find):
+        sys.exit('No existing PAD. Stop program')

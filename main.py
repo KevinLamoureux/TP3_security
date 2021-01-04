@@ -37,7 +37,7 @@ def arguments_parse():
             message = args.sometext
         send(args.dir, message)
     elif(args.receive):
-        receive(args.dir)
+        receive(args.dir, args.f)
     else:
         generate(args.dir)
 
