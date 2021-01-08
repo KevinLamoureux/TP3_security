@@ -1,4 +1,5 @@
 import argparse
+import subprocess, sys
 from src.module import generate, send, receive
 
 def arguments_parse():
@@ -41,4 +42,8 @@ def arguments_parse():
     else:
         generate(args.dir)
 
-arguments_parse()
+
+if(subprocess.call(['ping', '-c', '4', 'google.fr']) == 0):
+    sys.exit('Interface network up. Stop program')
+else:
+    arguments_parse()

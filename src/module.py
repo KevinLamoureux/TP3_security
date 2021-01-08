@@ -127,7 +127,7 @@ def send(dir_path, message):
                 path_repertory_current = new_path_repertory + '/' + str(i).zfill(2)
                 #if the file does not comply, we go to the next one
                 try:
-                    suffix = binToChar(path_repertory_current, "p")
+                    prefix = binToChar(path_repertory_current, "p")
                     f = open(path_pad, "r")
                     msg = ""
                     list_pad = splitBinary(f.read())
@@ -135,10 +135,10 @@ def send(dir_path, message):
                         # Use the mask on each character and XOR operator
                         msg += chr(ord(message[index_message]) ^ int(list_pad[index_message], 2))
                     f.close()
-                    prefix = binToChar(path_repertory_current, "s")
+                    suffix = binToChar(path_repertory_current, "s")
                     #replaced to construct the file name
                     path_message = path_repertory_current.replace('/', '-') + 't'
-                    writeFile(path_message, suffix + msg + prefix)
+                    writeFile(path_message, prefix + msg + suffix)
                     #shred file p
                     subprocess.Popen(['shred', path_pad])
                     find = True
@@ -183,11 +183,11 @@ def receive(dir_path, filename):
             # try , if error continue
             try:
                 if(os.path.exists(path_file)):
-                    # load suffix
+                    # load prefix
                     f = open(path_file, "r")
-                    suffix = f.read()
+                    prefix = f.read()
                     f.close()
-                    if (checkBinary(suffix_msg, suffix)):
+                    if (checkBinary(suffix_msg, prefix)):
                         path_pad = path_file[:-1] + 'c'
                         f = open(path_pad, "r")
                         list_pad = splitBinary(f.read())
@@ -209,3 +209,6 @@ def receive(dir_path, filename):
             break
     if not (find):
         sys.exit('No existing PAD. Stop program')
+
+
+# add verify if network interface is up
